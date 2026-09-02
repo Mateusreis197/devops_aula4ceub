@@ -1,0 +1,96 @@
+name: Pipeline DevSecOps (CI/CD + Segurança)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ----------------------------------------------------
+  # ETAPA 1: CI - Qualidade e Testes
+  # ----------------------------------------------------
+  ci_quality:
+    name: 1. CI - Qualidade e Testes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar Linter
+        run: npm run lint
+
+      - name: Executar Testes Automatizados
+        run: npm test
+
+
+  # ----------------------------------------------------
+  # ETAPA 2: DevSecOps - Segurança
+  # ----------------------------------------------------
+  devsecops_security:
+    name: 2. DevSecOps - Análise de Segurança
+    needs: ci_quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Verificação de Dependências Vulneráveis
+        run: npm audit --audit-level=high
+
+
+  # ----------------------------------------------------
+  # ETAPA 3: CD - Build e Implantação
+  # ----------------------------------------------------
+  cd_deploy:
+    name: 3. CD - Build e Implantação
+    needs: devsecops_security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Artefato de Build
+        run: npm run build --if-present
+
+      - name: Simulação de Deploy em Produção
+        run: |
+          echo "================================================="
+          echo "DEPLOY REALIZADO COM SUCESSO!"
+          echo "Aplicação aprovada em Qualidade, Testes e Segurança."
+          echo "================================================="
